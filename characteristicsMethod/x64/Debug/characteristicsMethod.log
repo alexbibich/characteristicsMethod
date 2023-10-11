@@ -1,4 +1,0 @@
-﻿  characteristicsMethod.cpp
-C:\Users\Vallelongo\Desktop\characterisitcMethod\characteristicsMethod\characteristicsMethod\characteristicsMethod.cpp(10,19): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-C:\Users\Vallelongo\Desktop\characterisitcMethod\characteristicsMethod\characteristicsMethod\characteristicsMethod.cpp(10,44): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
-  characteristicsMethod.vcxproj -> C:\Users\Vallelongo\Desktop\characterisitcMethod\characteristicsMethod\x64\Debug\characteristicsMethod.exe
