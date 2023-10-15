@@ -1,0 +1,5 @@
+﻿  characteristicsMethod.cpp
+C:\Users\Vallelongo\Desktop\characterisitcMethod\testPapka\characteristicsMethod\characteristicsMethod\characteristicsMethod\characteristicsMethod.cpp(13,28): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\Vallelongo\Desktop\characterisitcMethod\testPapka\characteristicsMethod\characteristicsMethod\characteristicsMethod\characteristicsMethod.cpp(13,45): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+  LINK : C:\Users\Vallelongo\Desktop\characterisitcMethod\testPapka\characteristicsMethod\characteristicsMethod\x64\Debug\characteristicsMethod.exe not found or not built by the last incremental link; performing full link
+  characteristicsMethod.vcxproj -> C:\Users\Vallelongo\Desktop\characterisitcMethod\testPapka\characteristicsMethod\characteristicsMethod\x64\Debug\characteristicsMethod.exe
