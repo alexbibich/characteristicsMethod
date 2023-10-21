@@ -12,9 +12,9 @@
 
 using namespace std;
 
-typedef composite_layer_t<profile_collection_t<1>, moc_solver<1>::specific_layer> single_var_moc_t;
+typedef composite_layer_t<profile_collection_t<1>, moc_solver<1>::specific_layer> layer_template;
 
-// Структура начальных условий
+/// @brief Структура начальных условий
 struct calc_data {
     double L;
     double speed;
@@ -25,9 +25,33 @@ struct calc_data {
     int T;
     int x_dots, time_dots;
     bool method;
+
+    //calc_data() {
+    //    speed = 10;
+    //    L = 100;
+    //    dx = 5;
+    //    ro_left = 840;
+    //    ro_right = 860;
+    //    T = 300;
+    //    dt = dx / speed;
+    //    k1 = dt / dx;
+    //    time_dots = (int)(T / dt);
+    //    x_dots = (int)(L / dx + 1);
+    //    cout << "Начальная плотность: " << ro_right << endl;
+    //    cout << "Конечная плотность:  " << ro_left << endl;
+    //    cout << "Длина трубопровода:  " << L << endl;
+    //    cout << "Время:               " << T << endl;
+    //    cout << "Скорость:            " << speed << endl;
+    //    cout << "Шаг по координате:   " << dx << endl;
+    //    cout << "Шаг по времени:      " << dt << endl;
+    //    cout << "Количество точек T:  " << time_dots << endl;
+    //    cout << "Количество точек X:  " << x_dots << endl;
+    //    cout << "Коэффициент:         " << k1 << endl;
+    //}
 };
 
-// Функция пользовательского ввода
+/// @brief Функция пользовательского ввода
+/// @param initCondition Ссылка на структуру начальных условий
 void selFun(calc_data& initCondition) {
 
     string inpt;
@@ -46,7 +70,8 @@ void selFun(calc_data& initCondition) {
     }
 }
 
-// Ввод значений начальных условий
+/// @brief Ввод значений начальных условий
+/// @param iniStruct Ссылка на структуру начальных условий
 void iniFun(calc_data& iniStruct) {
     iniStruct.speed = 10;
     iniStruct.L = 100;
@@ -71,21 +96,31 @@ void iniFun(calc_data& iniStruct) {
     cout << "Коэффициент:         " << iniStruct.k1 << endl;
 }
 
-// Свойство самоподобия
+/// @brief Расчёт через свойство самоподобия
+/// @param prev Предыдущий слой
+/// @param next Следующий слой
+/// @param iniData Ссылка на структуру начальных условий
 void selfSim(vector<double>& prev, vector<double>& next, calc_data& iniData) {
     next[0] = iniData.ro_left;
     for (int j=1;j< iniData.x_dots;j++)
         next[j] = prev[j - 1];
 }
 
-// Метод уголком
+/// @brief Расчёт методом уголка
+/// @param prev Предыдущий слой
+/// @param next Следующий слой
+/// @param iniData Ссылка на структуру начальных условий
 void angleMethod(vector<double>& prev, vector<double>& next, calc_data& iniData) {
     next[0] = iniData.ro_left;
     for (int j = 1; j < iniData.x_dots; j++)
         next[j] = (1 - iniData.k1) * prev[j] + iniData.k1 * prev[j - 1];
 }
 
-// Функция записи в файл
+/// @brief 
+/// @param strData Ссылка на структуру начальных условий
+/// @param layer Ссылка на текущий слой для вывода
+/// @param ti Шаг моделирования
+/// @param fileName Имя файла для записи
 void writeFun(calc_data& strData, vector<double>& layer, int ti, string fileName = "res.csv") {
     ofstream my_file;
     (ti == 0) ? (my_file.open(fileName)) : (my_file.open(fileName, ios::app));
@@ -96,8 +131,10 @@ void writeFun(calc_data& strData, vector<double>& layer, int ti, string fileName
     my_file.close();
 }
 
-// Функция вычисления
-void characteristics(custom_buffer_t<single_var_moc_t>& buff, calc_data iniData)
+/// @brief Функция расчёта 
+/// @param buff Ссылка на буфер
+/// @param iniData Ссылка на структуру начальных условий
+void characteristics(custom_buffer_t<layer_template>& buff, calc_data iniData)
 {
     writeFun(iniData, buff.current().vars.point_double[0], 0);
 
@@ -139,7 +176,7 @@ int main()
     iniFun(initial_data);
 
     // Буфер 
-    custom_buffer_t<single_var_moc_t> buffer(2, initial_data.x_dots);
+    custom_buffer_t<layer_template> buffer(2, initial_data.x_dots);
     buffer.current().vars.point_double[0] = vector<double>(initial_data.x_dots, initial_data.ro_right);
 
     // Расчёт
@@ -148,7 +185,7 @@ int main()
     // Вывод затраченного времени
     printf("Затраченное время: %i ms\n", time_count);
 
-    // График
+    // Построение график
     system("py charts.py");
 
     return 0;
