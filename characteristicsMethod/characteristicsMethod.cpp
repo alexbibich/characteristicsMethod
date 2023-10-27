@@ -19,31 +19,51 @@ class PipeSolver
 {
 public:
     // Конструктор класса
-    PipeSolver(vector<double>& pr, vector<double>& ne)
-        : prev{pr}, next{ne}
+    PipeSolver(vector<double>& pr, vector<double>& ne, bool dir)
+        : prev{pr}, next{ne}, direction{dir}
     {}
 
     // Функция расчёта с помощью свойства самоподобия
     void step(double left, double rigth)
     {
-        next[0] = left;
-        for (int j = 1; j < next.size(); j++)
-            next[j] = prev[j - 1];
+        if (direction)
+        {
+            next[0] = left;
+            for (int j = 1; j < next.size(); j++)
+                next[j] = prev[j - 1];
+        }
+        else 
+        {
+            next[next.size()-1] = left;
+            for (int j = (int)next.size() - 2; j >= 0; j--)
+                next[j] = prev[j + 1];
+        }
+        
     }
 
     // Функция расчёта методом уголка
     void step(double left, double rigth, double dt, double dx)
     {
         double k = dt / dx;
-
-        next[0] = left;
-        for (int j = 1; j < next.size(); j++)
-            next[j] = (1 - k) * prev[j] + k * prev[j - 1];
+        if (direction)
+        {
+            next[0] = left;
+            for (int j = 1; j < next.size(); j++)
+                next[j] = (1 - k) * prev[j] + k * prev[j - 1];
+        }
+        else 
+        {
+            next[next.size() - 1] = rigth;
+            for (int j = (int)next.size() - 2; j >= 0; j--)
+                next[j] = (1 - k) * prev[j] + k * prev[j + 1];
+        }
+        
     }
 
 private:
     vector<double>& prev; // Ссылка на предыдущий слой
     vector<double>& next; // ССылка на следующий слой
+    bool direction;
 };
 
 /// @brief Структура начальных условий
@@ -53,12 +73,14 @@ struct calc_data {
     double dx, dt;
     double ro_left;
     double ro_right;
+    double ro_init;
     double s_left;
     double s_right;
+    double s_init;
     double k1;
     int T;
     int x_dots, time_dots;
-    bool method;
+    bool method, direction;
 
     //calc_data() {
     //    speed = 10;
@@ -111,14 +133,17 @@ void iniFun(calc_data& iniStruct) {
     iniStruct.L = 100;
     iniStruct.dx = 5;
     iniStruct.ro_left = 840;
-    iniStruct.ro_right = 860;
+    iniStruct.ro_right = 880;
+    iniStruct.ro_init = 860;
     iniStruct.s_left = 0.60;
-    iniStruct.s_right = 0.90;
+    iniStruct.s_right = 1.2;
+    iniStruct.s_init = 0.90;
     iniStruct.T = 300;
     iniStruct.dt = iniStruct.dx / iniStruct.speed;
     iniStruct.k1 = iniStruct.dt / iniStruct.dx;
     iniStruct.time_dots = (int) (iniStruct.T / iniStruct.dt);
     iniStruct.x_dots = (int)(iniStruct.L / iniStruct.dx + 1);
+    iniStruct.direction = false;
 
     cout << "Начальная плотность:        " << iniStruct.ro_right << endl;
     cout << "Конечная плотность:         " << iniStruct.ro_left << endl;
@@ -132,6 +157,7 @@ void iniFun(calc_data& iniStruct) {
     cout << "Количество точек T:         " << iniStruct.time_dots << endl;
     cout << "Количество точек X:         " << iniStruct.x_dots << endl;
     cout << "Коэффициент:                " << iniStruct.k1 << endl;
+    cout << "Направление:                " << ((iniStruct.direction) ? ("Прямое\n") : ("Обратное\n"));
 }
 
 /// @brief 
@@ -141,7 +167,7 @@ void iniFun(calc_data& iniStruct) {
 /// @param fileName Имя файла для записи
 void writeFun(calc_data& strData, custom_buffer_t<layer_template>& buff, int ti, string fileName = "res.csv") {
     ofstream my_file;
-    int profCount = buff.current().vars.point_double.size();
+    int profCount = (int)buff.current().vars.point_double.size();
 
     (ti == 0) ? (my_file.open(fileName)) : (my_file.open(fileName, ios::app));
 
@@ -175,7 +201,7 @@ void characteristics(custom_buffer_t<layer_template>& buff, calc_data& iniData)
         for (int p = 0; p < buff.current().vars.point_double.size(); p++)
         {
 
-            PipeSolver solv(buff.previous().vars.point_double[p], buff.current().vars.point_double[p]);
+            PipeSolver solv(buff.previous().vars.point_double[p], buff.current().vars.point_double[p], iniData.direction);
             if (iniData.method)
                 solv.step(boundCond[p][0], boundCond[p][1]);
             else
@@ -214,8 +240,8 @@ int main()
 
     // Буфер 
     custom_buffer_t<layer_template> buffer(2, initial_data.x_dots);
-    buffer.current().vars.point_double[0] = vector<double>(initial_data.x_dots, initial_data.ro_right);
-    buffer.current().vars.point_double[1] = vector<double>(initial_data.x_dots, initial_data.s_right);
+    buffer.current().vars.point_double[0] = vector<double>(initial_data.x_dots, initial_data.ro_init);
+    buffer.current().vars.point_double[1] = vector<double>(initial_data.x_dots, initial_data.s_init);
 
     // Расчёт
     characteristics(buffer, initial_data);
@@ -223,8 +249,9 @@ int main()
     // Вывод затраченного времени
     printf("Затраченное время: %i ms\n", time_count);
 
-    // Построение график
-    //system("py charts.py");
+    // Построение графика
+    system("py sulf.py");
+    //system("py dens.py");
 
     return 0;
 }
