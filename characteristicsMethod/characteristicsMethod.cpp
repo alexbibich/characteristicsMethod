@@ -5,14 +5,46 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include<cstdlib>
+#include <cstdlib>
 
 #include <Windows.h>
 #include <ctime>
 
 using namespace std;
 
-typedef composite_layer_t<profile_collection_t<1>, moc_solver<1>::specific_layer> layer_template;
+typedef composite_layer_t<profile_collection_t<2>> layer_template;
+
+// Класс солвера
+class PipeSolver
+{
+public:
+    // Конструктор класса
+    PipeSolver(vector<double>& pr, vector<double>& ne)
+        : prev{pr}, next{ne}
+    {}
+
+    // Функция расчёта с помощью свойства самоподобия
+    void step(double left, double rigth)
+    {
+        next[0] = left;
+        for (int j = 1; j < next.size(); j++)
+            next[j] = prev[j - 1];
+    }
+
+    // Функция расчёта методом уголка
+    void step(double left, double rigth, double dt, double dx)
+    {
+        double k = dt / dx;
+
+        next[0] = left;
+        for (int j = 1; j < next.size(); j++)
+            next[j] = (1 - k) * prev[j] + k * prev[j - 1];
+    }
+
+private:
+    vector<double>& prev; // Ссылка на предыдущий слой
+    vector<double>& next; // ССылка на следующий слой
+};
 
 /// @brief Структура начальных условий
 struct calc_data {
@@ -21,6 +53,8 @@ struct calc_data {
     double dx, dt;
     double ro_left;
     double ro_right;
+    double s_left;
+    double s_right;
     double k1;
     int T;
     int x_dots, time_dots;
@@ -78,42 +112,26 @@ void iniFun(calc_data& iniStruct) {
     iniStruct.dx = 5;
     iniStruct.ro_left = 840;
     iniStruct.ro_right = 860;
+    iniStruct.s_left = 0.60;
+    iniStruct.s_right = 0.90;
     iniStruct.T = 300;
     iniStruct.dt = iniStruct.dx / iniStruct.speed;
     iniStruct.k1 = iniStruct.dt / iniStruct.dx;
     iniStruct.time_dots = (int) (iniStruct.T / iniStruct.dt);
     iniStruct.x_dots = (int)(iniStruct.L / iniStruct.dx + 1);
 
-    cout << "Начальная плотность: " << iniStruct.ro_right << endl;
-    cout << "Конечная плотность:  " << iniStruct.ro_left << endl;
-    cout << "Длина трубопровода:  " << iniStruct.L << endl;
-    cout << "Время:               " << iniStruct.T << endl;
-    cout << "Скорость:            " << iniStruct.speed << endl;
-    cout << "Шаг по координате:   " << iniStruct.dx << endl;
-    cout << "Шаг по времени:      " << iniStruct.dt << endl;
-    cout << "Количество точек T:  " << iniStruct.time_dots << endl;
-    cout << "Количество точек X:  " << iniStruct.x_dots << endl;
-    cout << "Коэффициент:         " << iniStruct.k1 << endl;
-}
-
-/// @brief Расчёт через свойство самоподобия
-/// @param prev Предыдущий слой
-/// @param next Следующий слой
-/// @param iniData Ссылка на структуру начальных условий
-void selfSim(vector<double>& prev, vector<double>& next, calc_data& iniData) {
-    next[0] = iniData.ro_left;
-    for (int j=1;j< iniData.x_dots;j++)
-        next[j] = prev[j - 1];
-}
-
-/// @brief Расчёт методом уголка
-/// @param prev Предыдущий слой
-/// @param next Следующий слой
-/// @param iniData Ссылка на структуру начальных условий
-void angleMethod(vector<double>& prev, vector<double>& next, calc_data& iniData) {
-    next[0] = iniData.ro_left;
-    for (int j = 1; j < iniData.x_dots; j++)
-        next[j] = (1 - iniData.k1) * prev[j] + iniData.k1 * prev[j - 1];
+    cout << "Начальная плотность:        " << iniStruct.ro_right << endl;
+    cout << "Конечная плотность:         " << iniStruct.ro_left << endl;
+    cout << "Начальное содержание серы:  " << iniStruct.s_right << endl;
+    cout << "Конечное содержание серы:   " << iniStruct.s_left << endl;
+    cout << "Длина трубопровода:         " << iniStruct.L << endl;
+    cout << "Время:                      " << iniStruct.T << endl;
+    cout << "Скорость:                   " << iniStruct.speed << endl;
+    cout << "Шаг по координате:          " << iniStruct.dx << endl;
+    cout << "Шаг по времени:             " << iniStruct.dt << endl;
+    cout << "Количество точек T:         " << iniStruct.time_dots << endl;
+    cout << "Количество точек X:         " << iniStruct.x_dots << endl;
+    cout << "Коэффициент:                " << iniStruct.k1 << endl;
 }
 
 /// @brief 
@@ -121,35 +139,54 @@ void angleMethod(vector<double>& prev, vector<double>& next, calc_data& iniData)
 /// @param layer Ссылка на текущий слой для вывода
 /// @param ti Шаг моделирования
 /// @param fileName Имя файла для записи
-void writeFun(calc_data& strData, vector<double>& layer, int ti, string fileName = "res.csv") {
+void writeFun(calc_data& strData, custom_buffer_t<layer_template>& buff, int ti, string fileName = "res.csv") {
     ofstream my_file;
+    int profCount = buff.current().vars.point_double.size();
+
     (ti == 0) ? (my_file.open(fileName)) : (my_file.open(fileName, ios::app));
 
-    for (int i=0;i< strData.x_dots;i++)
-        my_file << ti * strData.dt << ";" << i * strData.dx << ";" << layer[i] << endl;
-    
+    for (int i = 0; i < strData.x_dots; i++)
+    {
+        my_file << ti * strData.dt << ";" << i * strData.dx;
+        for (int p=0;p<profCount;p++)
+            my_file << ";" << buff.current().vars.point_double[p][i];
+
+        my_file << endl;
+    }
+
     my_file.close();
 }
 
 /// @brief Функция расчёта 
 /// @param buff Ссылка на буфер
 /// @param iniData Ссылка на структуру начальных условий
-void characteristics(custom_buffer_t<layer_template>& buff, calc_data iniData)
+void characteristics(custom_buffer_t<layer_template>& buff, calc_data& iniData)
 {
-    writeFun(iniData, buff.current().vars.point_double[0], 0);
+    writeFun(iniData, buff, 0);
 
+    double boundCond[2][2] { {iniData.ro_left, iniData.ro_right},
+                           {iniData.s_left,  iniData.s_right} };
+
+    
     for (int i = 1; i <= iniData.time_dots; i++)
     {
         buff.advance(1);
 
-        if (iniData.method)
-            selfSim(buff.previous().vars.point_double[0], buff.current().vars.point_double[0], iniData);
-        else
-            angleMethod(buff.previous().vars.point_double[0], buff.current().vars.point_double[0], iniData);
-        
-        writeFun(iniData, buff.current().vars.point_double[0], i);
+        for (int p = 0; p < buff.current().vars.point_double.size(); p++)
+        {
+
+            PipeSolver solv(buff.previous().vars.point_double[p], buff.current().vars.point_double[p]);
+            if (iniData.method)
+                solv.step(boundCond[p][0], boundCond[p][1]);
+            else
+                solv.step(boundCond[p][0], boundCond[p][1], iniData.dt, iniData.dx);
+        }
+
+        writeFun(iniData, buff, i);
     }
 }
+
+
 
 int main()
 {
@@ -178,6 +215,7 @@ int main()
     // Буфер 
     custom_buffer_t<layer_template> buffer(2, initial_data.x_dots);
     buffer.current().vars.point_double[0] = vector<double>(initial_data.x_dots, initial_data.ro_right);
+    buffer.current().vars.point_double[1] = vector<double>(initial_data.x_dots, initial_data.s_right);
 
     // Расчёт
     characteristics(buffer, initial_data);
@@ -186,7 +224,7 @@ int main()
     printf("Затраченное время: %i ms\n", time_count);
 
     // Построение график
-    system("py charts.py");
+    //system("py charts.py");
 
     return 0;
 }

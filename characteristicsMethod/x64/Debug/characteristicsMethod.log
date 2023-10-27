@@ -1,2 +1,3 @@
 ﻿  characteristicsMethod.cpp
-  characteristicsMethod.vcxproj -> E:\test_rep\characteristicsMethod\x64\Debug\characteristicsMethod.exe
+C:\Users\bibich.a\Desktop\characteristicsMethod\characteristicsMethod\characteristicsMethod.cpp(144,19): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+  characteristicsMethod.vcxproj -> C:\Users\bibich.a\Desktop\characteristicsMethod\x64\Debug\characteristicsMethod.exe
