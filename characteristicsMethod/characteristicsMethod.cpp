@@ -14,35 +14,44 @@ using namespace std;
 
 typedef composite_layer_t<profile_collection_t<2>> layer_template;
 
-// Класс солвера
+/// @brief Класс солвера, включающий в себя метод самоподобия и метод уголком
 class PipeSolver
 {
 public:
-    // Конструктор класса
-    PipeSolver(vector<double>& pr, vector<double>& ne, bool dir)
+    /// @brief Конструктор класса солвера
+    /// @param pr Ссылка на предыдущий слой
+    /// @param ne Ссылка на следующий слой
+    /// @param dir Переменная, обозначающая направление течения
+    PipeSolver(vector<double>& pr, vector<double>& ne, bool& dir)
         : prev{pr}, next{ne}, direction{dir}
     {}
 
-    // Функция расчёта с помощью свойства самоподобия
-    void step(double left, double rigth)
+    /// @brief Метод расчёта с помощбю свойства самоподобия
+    /// @param left Левое граничное условие
+    /// @param right Правое граничное условие
+    void step(double left, double right)
     {
         if (direction)
         {
             next[0] = left;
-            for (int j = 1; j < next.size(); j++)
+            for (size_t j = 1; j < next.size(); j++)
                 next[j] = prev[j - 1];
         }
         else 
         {
-            next[next.size()-1] = left;
-            for (int j = (int)next.size() - 2; j >= 0; j--)
+            next[next.size()-1] = right;
+            for (size_t j = 0; j < next.size() - 1; j++)
                 next[j] = prev[j + 1];
         }
         
     }
 
-    // Функция расчёта методом уголка
-    void step(double left, double rigth, double dt, double dx)
+    /// @brief Метод расчёта уголком
+    /// @param left Левое граничное условие
+    /// @param right Правое граничное условие
+    /// @param dt Шаг по времени для расчёт коэффициента k
+    /// @param dx Шаг по времени для расчёт коэффициента k
+    void step(double left, double right, double dt, double dx)
     {
         double k = dt / dx;
         if (direction)
@@ -53,8 +62,8 @@ public:
         }
         else 
         {
-            next[next.size() - 1] = rigth;
-            for (int j = (int)next.size() - 2; j >= 0; j--)
+            next[next.size() - 1] = right;
+            for (size_t j = 0; j < next.size() - 1; j++)
                 next[j] = (1 - k) * prev[j] + k * prev[j + 1];
         }
         
@@ -63,7 +72,7 @@ public:
 private:
     vector<double>& prev; // Ссылка на предыдущий слой
     vector<double>& next; // ССылка на следующий слой
-    bool direction;
+    bool& direction;
 };
 
 /// @brief Структура начальных условий
@@ -120,7 +129,7 @@ void iniFun(calc_data& iniStruct) {
     iniStruct.k1 = iniStruct.dt / iniStruct.dx;
     iniStruct.time_dots = (int) (iniStruct.T / iniStruct.dt);
     iniStruct.x_dots = (int)(iniStruct.L / iniStruct.dx + 1);
-    iniStruct.direction = true;
+    iniStruct.direction = false;
 
     cout << "Начальная плотность:        " << iniStruct.ro_init << endl;
     cout << "Плотность слева:            " << iniStruct.ro_left << endl;
@@ -146,7 +155,7 @@ void iniFun(calc_data& iniStruct) {
 /// @param fileName Имя файла для записи
 void writeFun(calc_data& strData, custom_buffer_t<layer_template>& buff, int ti, string fileName = "res.csv") {
     ofstream my_file;
-    int profCount = (int)buff.current().vars.point_double.size();
+    size_t profCount = buff.current().vars.point_double.size();
 
     //(ti == 0) ? (my_file.open(fileName)) : (my_file.open(fileName, ios::app));
     if (ti == 0) 
@@ -162,7 +171,7 @@ void writeFun(calc_data& strData, custom_buffer_t<layer_template>& buff, int ti,
     for (int i = 0; i < strData.x_dots; i++)
     {
         my_file << ti * strData.dt << "," << i * strData.dx;
-        for (int p=0;p<profCount;p++)
+        for (size_t p=0;p<profCount;p++)
             my_file << "," << buff.current().vars.point_double[p][i];
 
         my_file << endl;
@@ -192,7 +201,7 @@ void characteristics(custom_buffer_t<layer_template>& buff, calc_data& iniData)
         {
 
             PipeSolver solv(buff.previous().vars.point_double[p], buff.current().vars.point_double[p], iniData.direction);
-            if (iniData.method) // 1 - с помощью свойства самоподобия, 0 - метод уголком
+            if (iniData.method) // 1 - с помощью свойства самоподобия, 0 - метод расчёта уголком
                 solv.step(boundCond[p][0], boundCond[p][1]);
             else
                 solv.step(boundCond[p][0], boundCond[p][1], iniData.dt, iniData.dx);
@@ -212,7 +221,6 @@ int main()
     //    std::wcout.imbue(std::locale("rus_rus.866"));
     //#endif
 
-    // Отсчёт времени работы программы
     int time_count = clock();
 
     // Установка кодировки консоли
