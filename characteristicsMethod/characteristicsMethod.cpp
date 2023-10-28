@@ -81,29 +81,6 @@ struct calc_data {
     int T;
     int x_dots, time_dots;
     bool method, direction;
-
-    //calc_data() {
-    //    speed = 10;
-    //    L = 100;
-    //    dx = 5;
-    //    ro_left = 840;
-    //    ro_right = 860;
-    //    T = 300;
-    //    dt = dx / speed;
-    //    k1 = dt / dx;
-    //    time_dots = (int)(T / dt);
-    //    x_dots = (int)(L / dx + 1);
-    //    cout << "Начальная плотность: " << ro_right << endl;
-    //    cout << "Конечная плотность:  " << ro_left << endl;
-    //    cout << "Длина трубопровода:  " << L << endl;
-    //    cout << "Время:               " << T << endl;
-    //    cout << "Скорость:            " << speed << endl;
-    //    cout << "Шаг по координате:   " << dx << endl;
-    //    cout << "Шаг по времени:      " << dt << endl;
-    //    cout << "Количество точек T:  " << time_dots << endl;
-    //    cout << "Количество точек X:  " << x_dots << endl;
-    //    cout << "Коэффициент:         " << k1 << endl;
-    //}
 };
 
 /// @brief Функция пользовательского ввода
@@ -143,12 +120,14 @@ void iniFun(calc_data& iniStruct) {
     iniStruct.k1 = iniStruct.dt / iniStruct.dx;
     iniStruct.time_dots = (int) (iniStruct.T / iniStruct.dt);
     iniStruct.x_dots = (int)(iniStruct.L / iniStruct.dx + 1);
-    iniStruct.direction = false;
+    iniStruct.direction = true;
 
-    cout << "Начальная плотность:        " << iniStruct.ro_right << endl;
-    cout << "Конечная плотность:         " << iniStruct.ro_left << endl;
-    cout << "Начальное содержание серы:  " << iniStruct.s_right << endl;
-    cout << "Конечное содержание серы:   " << iniStruct.s_left << endl;
+    cout << "Начальная плотность:        " << iniStruct.ro_init << endl;
+    cout << "Плотность слева:            " << iniStruct.ro_left << endl;
+    cout << "Плотность справа:           " << iniStruct.ro_right << endl;
+    cout << "Начальное содержание серы:  " << iniStruct.s_init << endl;
+    cout << "Содержание серы слева:      " << iniStruct.s_left << endl;
+    cout << "Содержание серы справа:     " << iniStruct.s_right << endl;
     cout << "Длина трубопровода:         " << iniStruct.L << endl;
     cout << "Время:                      " << iniStruct.T << endl;
     cout << "Скорость:                   " << iniStruct.speed << endl;
@@ -169,13 +148,22 @@ void writeFun(calc_data& strData, custom_buffer_t<layer_template>& buff, int ti,
     ofstream my_file;
     int profCount = (int)buff.current().vars.point_double.size();
 
-    (ti == 0) ? (my_file.open(fileName)) : (my_file.open(fileName, ios::app));
+    //(ti == 0) ? (my_file.open(fileName)) : (my_file.open(fileName, ios::app));
+    if (ti == 0) 
+    {
+        my_file.open(fileName);
+        my_file << "time,x,Density,Sulfur" << endl;
+    }
+    else
+    {
+        my_file.open(fileName, ios::app);
+    }
 
     for (int i = 0; i < strData.x_dots; i++)
     {
-        my_file << ti * strData.dt << ";" << i * strData.dx;
+        my_file << ti * strData.dt << "," << i * strData.dx;
         for (int p=0;p<profCount;p++)
-            my_file << ";" << buff.current().vars.point_double[p][i];
+            my_file << "," << buff.current().vars.point_double[p][i];
 
         my_file << endl;
     }
@@ -190,6 +178,7 @@ void characteristics(custom_buffer_t<layer_template>& buff, calc_data& iniData)
 {
     writeFun(iniData, buff, 0);
 
+    // Граничные условия
     double boundCond[2][2] { {iniData.ro_left, iniData.ro_right},
                            {iniData.s_left,  iniData.s_right} };
 
@@ -198,11 +187,12 @@ void characteristics(custom_buffer_t<layer_template>& buff, calc_data& iniData)
     {
         buff.advance(1);
 
+        // Расчёт по всем имеющимся профилям
         for (int p = 0; p < buff.current().vars.point_double.size(); p++)
         {
 
             PipeSolver solv(buff.previous().vars.point_double[p], buff.current().vars.point_double[p], iniData.direction);
-            if (iniData.method)
+            if (iniData.method) // 1 - с помощью свойства самоподобия, 0 - метод уголком
                 solv.step(boundCond[p][0], boundCond[p][1]);
             else
                 solv.step(boundCond[p][0], boundCond[p][1], iniData.dt, iniData.dx);
@@ -250,8 +240,7 @@ int main()
     printf("Затраченное время: %i ms\n", time_count);
 
     // Построение графика
-    system("py sulf.py");
-    //system("py dens.py");
+    system("py charts.py");
 
     return 0;
 }
